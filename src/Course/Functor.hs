@@ -1,162 +1,139 @@
-{-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module Course.Functor where
 
 import Course.Core
 import Course.ExactlyOne
-import Course.Optional
 import Course.List
-import qualified Prelude as P(fmap)
+import Course.Optional
+import qualified Prelude as P (fmap)
 
--- | All instances of the `Functor` type-class must satisfy two laws. These laws
--- are not checked by the compiler. These laws are given as:
---
--- * The law of identity
---   `∀x. (id <$> x) ≅ x`
---
--- * The law of composition
---   `∀f g x.(f . g <$> x) ≅ (f <$> (g <$> x))`
+{- | All instances of the `Functor` type-class must satisfy two laws. These laws
+are not checked by the compiler. These laws are given as:
+
+* The law of identity
+  `∀x. (id <$> x) ≅ x`
+
+* The law of composition
+  `∀f g x.(f . g <$> x) ≅ (f <$> (g <$> x))`
+-}
 class Functor k where
   -- Pronounced, eff-map.
-  (<$>) ::
-    (a -> b)
-    -> k a
-    -> k b
+  (<$>) :: (a -> b) -> k a -> k b
 
 infixl 4 <$>
 
--- $setup
--- >>> :set -XOverloadedStrings
--- >>> import Course.Core
--- >>> import qualified Prelude as P(return, (>>))
+{- $setup
+>>> :set -XOverloadedStrings
+>>> import Course.Core
+>>> import qualified Prelude as P(return, (>>))
+-}
 
--- | Maps a function on the ExactlyOne functor.
---
--- >>> (+1) <$> ExactlyOne 2
--- ExactlyOne 3
+{- | Maps a function on the ExactlyOne functor.
+
+>>> (+1) <$> ExactlyOne 2
+ExactlyOne 3
+-}
 instance Functor ExactlyOne where
-  (<$>) ::
-    (a -> b)
-    -> ExactlyOne a
-    -> ExactlyOne b
-  (<$>) =
-    error "todo: Course.Functor (<$>)#instance ExactlyOne"
+  (<$>) :: (a -> b) -> ExactlyOne a -> ExactlyOne b
+  (<$>) f (ExactlyOne a) = ExactlyOne (f a)
 
--- | Maps a function on the List functor.
---
--- >>> (+1) <$> Nil
--- []
---
--- >>> (+1) <$> (1 :. 2 :. 3 :. Nil)
--- [2,3,4]
+{- | Maps a function on the List functor.
+
+>>> (+1) <$> Nil
+[]
+
+>>> (+1) <$> (1 :. 2 :. 3 :. Nil)
+[2,3,4]
+-}
 instance Functor List where
-  (<$>) ::
-    (a -> b)
-    -> List a
-    -> List b
-  (<$>) =
-    error "todo: Course.Functor (<$>)#instance List"
+  (<$>) :: (a -> b) -> List a -> List b
+  (<$>) f = foldRight ((:.) . f) Nil
 
--- | Maps a function on the Optional functor.
---
--- >>> (+1) <$> Empty
--- Empty
---
--- >>> (+1) <$> Full 2
--- Full 3
+{- | Maps a function on the Optional functor.
+
+>>> (+1) <$> Empty
+Empty
+
+>>> (+1) <$> Full 2
+Full 3
+-}
 instance Functor Optional where
-  (<$>) ::
-    (a -> b)
-    -> Optional a
-    -> Optional b
-  (<$>) =
-    error "todo: Course.Functor (<$>)#instance Optional"
+  (<$>) :: (a -> b) -> Optional a -> Optional b
+  (<$>) _ Empty = Empty
+  (<$>) f (Full a) = Full (f a)
 
--- | Maps a function on the reader ((->) t) functor.
---
--- >>> ((+1) <$> (*2)) 8
--- 17
+{- | Maps a function on the reader ((->) t) functor.
+
+>>> ((+1) <$> (*2)) 8
+17
+-}
 instance Functor ((->) t) where
-  (<$>) ::
-    (a -> b)
-    -> ((->) t a)
-    -> ((->) t b)
-  (<$>) =
-    error "todo: Course.Functor (<$>)#((->) t)"
+  (<$>) :: (a -> b) -> (->) t a -> (->) t b
+  (<$>) f g = f . g
 
--- | Anonymous map. Maps a constant value on a functor.
---
--- >>> 7 <$ (1 :. 2 :. 3 :. Nil)
--- [7,7,7]
---
--- prop> \x a b c -> x <$ (a :. b :. c :. Nil) == (x :. x :. x :. Nil)
---
--- prop> \x q -> x <$ Full q == Full x
-(<$) ::
-  Functor k =>
-  a
-  -> k b
-  -> k a
-(<$) =
-  error "todo: Course.Functor#(<$)"
+{- | Anonymous map. Maps a constant value on a functor.
 
--- | Apply a value to a functor-of-functions.
---
--- __NOTE__: The second argument is a bare @a@, not a @k a@. You need
--- a more powerful typeclass, 'Applicative', if you want both the
--- functions and the argmuents to be "inside" the Functor:
---
--- @
--- (<*>) :: Applicative k => k (a -> b) -> k a -> k b
--- @
---
--- We will talk about 'Applicative' soon.
---
--- >>> (*2) :. (+1) :. const 99 :. Nil ?? 8
--- [16,9,99]
---
--- >>> Empty ?? 2
--- Empty
-(??) ::
-  Functor k =>
-  k (a -> b)
-  -> a
-  -> k b
-(??) ff a =
-  error "todo: Course.Functor#(??)"
+>>> 7 <$ (1 :. 2 :. 3 :. Nil)
+[7,7,7]
+
+prop> \x a b c -> x <$ (a :. b :. c :. Nil) == (x :. x :. x :. Nil)
+
+prop> \x q -> x <$ Full q == Full x
+-}
+(<$) :: Functor k => a -> k b -> k a
+(<$) a k = const a <$> k
+
+{- | Apply a value to a functor-of-functions.
+
+__NOTE__: The second argument is a bare @a@, not a @k a@. You need
+a more powerful typeclass, 'Applicative', if you want both the
+functions and the argmuents to be "inside" the Functor:
+
+@
+(<*>) :: Applicative k => k (a -> b) -> k a -> k b
+@
+
+We will talk about 'Applicative' soon.
+
+>>> (*2) :. (+1) :. const 99 :. Nil ?? 8
+[16,9,99]
+
+>>> Empty ?? 2
+Empty
+-}
+(??) :: Functor k => k (a -> b) -> a -> k b
+(??) ff a = ($ a) <$> ff
 
 infixl 1 ??
 
--- | Anonymous map producing unit value.
---
--- >>> void (1 :. 2 :. 3 :. Nil)
--- [(),(),()]
---
--- >>> void (Full 7)
--- Full ()
---
--- >>> void Empty
--- Empty
---
--- >>> void (+10) 5
--- ()
-void ::
-  Functor k =>
-  k a
-  -> k ()
-void =
-  error "todo: Course.Functor#void"
+{- | Anonymous map producing unit value.
+
+>>> void (1 :. 2 :. 3 :. Nil)
+[(),(),()]
+
+>>> void (Full 7)
+Full ()
+
+>>> void Empty
+Empty
+
+>>> void (+10) 5
+()
+-}
+void :: Functor k => k a -> k ()
+void = (<$>) (const ())
 
 -----------------------
 -- SUPPORT LIBRARIES --
 -----------------------
 
--- | Maps a function on an IO program.
---
--- >>> reverse <$> (putStr "hi" P.>> P.return ("abc" :: List Char))
--- hi"cba"
+{- | Maps a function on an IO program.
+
+>>> reverse <$> (putStr "hi" P.>> P.return ("abc" :: List Char))
+hi"cba"
+-}
 instance Functor IO where
-  (<$>) =
-    P.fmap
+  (<$>) = P.fmap
