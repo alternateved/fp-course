@@ -1,15 +1,16 @@
-{-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RebindableSyntax #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module Course.FileIO where
 
-import Course.Core
 import Course.Applicative
-import Course.Monad
+import Course.Core
 import Course.Functor
 import Course.List
+import Course.Monad
 
 {-
 
@@ -60,7 +61,7 @@ To test this module, load ghci in the root of the project directory, and do
 
 Example output:
 
-$ ghci
+\$ ghci
 GHCi, version ...
 Loading package...
 Loading ...
@@ -81,50 +82,40 @@ the contents of c
 
 -- Given the file name, and file contents, print them.
 -- Use @putStrLn@.
-printFile ::
-  FilePath
-  -> Chars
-  -> IO ()
-printFile =
-  error "todo: Course.FileIO#printFile"
+printFile :: FilePath -> Chars -> IO ()
+printFile path content = do
+  putStrLn $ "============ " ++ path
+  putStrLn content
 
 -- Given a list of (file name and file contents), print each.
 -- Use @printFile@.
-printFiles ::
-  List (FilePath, Chars)
-  -> IO ()
-printFiles =
-  error "todo: Course.FileIO#printFiles"
+printFiles :: List (FilePath, Chars) -> IO ()
+printFiles = mapM_ $ uncurry printFile
 
 -- Given a file name, return (file name and file contents).
 -- Use @readFile@.
-getFile ::
-  FilePath
-  -> IO (FilePath, Chars)
-getFile =
-  error "todo: Course.FileIO#getFile"
+getFile :: FilePath -> IO (FilePath, Chars)
+getFile path = readFile path >>= \content -> pure (path, content)
 
 -- Given a list of file names, return list of (file name and file contents).
 -- Use @getFile@.
-getFiles ::
-  List FilePath
-  -> IO (List (FilePath, Chars))
-getFiles =
-  error "todo: Course.FileIO#getFiles"
+getFiles :: List FilePath -> IO (List (FilePath, Chars))
+getFiles = mapM getFile
 
 -- Given a file name, read it and for each line in that file, read and print contents of each.
 -- Use @getFiles@, @lines@, and @printFiles@.
-run ::
-  FilePath
-  -> IO ()
-run =
-  error "todo: Course.FileIO#run"
+run :: FilePath -> IO ()
+run path = do
+  paths <- readFile path
+  files <- getFiles $ lines paths
+  printFiles files
 
 -- /Tip:/ use @getArgs@ and @run@
-main ::
-  IO ()
+main :: IO ()
 main =
-  error "todo: Course.FileIO#main"
+  getArgs >>= \case
+    path :. Nil -> run path
+    _ -> putStrLn "Please provide a filepath"
 
 ----
 
@@ -132,3 +123,12 @@ main =
 -- ? `sequence . (<$>)`
 -- ? `void . sequence . (<$>)`
 -- Factor it out.
+
+sequence_ :: Monad k => List (k a) -> k ()
+sequence_ = void . sequence
+
+mapM :: Monad k => (a -> k b) -> List a -> k (List b)
+mapM f = sequence . (<$>) f
+
+mapM_ :: Monad k => (a -> k b) -> List a -> k ()
+mapM_ f = foldRight (\x k -> f x >> k) (pure ())
